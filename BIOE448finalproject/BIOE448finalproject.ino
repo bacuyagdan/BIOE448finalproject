@@ -19,13 +19,13 @@ void loop() {
   Wire.requestFrom(accel, 6, true); // Get readings (2 readings per direction x 3 directions = 6 values)
   x = (Wire.read() | Wire.read() << 8); // Parse x values
   y = (Wire.read() | Wire.read() << 8); // Parse y values
-  y = (Wire.read() | Wire.read() << 8); // Parse z values
+  z = (Wire.read() | Wire.read() << 8); // Parse z values
 
-  Serial.print("x = "); // Print values
-  Serial.print(x);
-  Serial.print(", y = ");
-  Serial.print(y);
-  Serial.print(", z = ");
+  //Serial.print("x = "); // Print values
+  Serial.println(x);
+  //Serial.print(", y = ");
+  Serial.println(y);
+  //Serial.print(", z = ");
   Serial.println(z);
   delay(200);
 }
