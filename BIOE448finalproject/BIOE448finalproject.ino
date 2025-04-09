@@ -1,4 +1,6 @@
 #include <Wire.h> // Necessary for I2C communication
+#include <LiquidCrystal.h> //LCD library
+LiquidCrystal lcd(7,6,5,4,3,2); // initialize the LCD object
 
 int accel = 0x53; // I2C address for this sensor (from data sheet)
 float x, y, z, acc;
@@ -19,6 +21,7 @@ void setup() {
   Wire.write(0x2D); // Enable measurement
   Wire.write(8); // Get sample measurement
   Wire.endTransmission();
+  lcd.begin(16,2); //Initiate LCD in 16x2 configuration
 }
 
 void loop() {
@@ -58,4 +61,9 @@ void loop() {
 
   Serial.println(steps);
 
+  //prints the current step count on LCD
+  lcd.setCursor(0,0);
+  lcd.print("Steps:"); 
+  lcd.setCursor(0,1);
+  lcd.print(steps);
 }
