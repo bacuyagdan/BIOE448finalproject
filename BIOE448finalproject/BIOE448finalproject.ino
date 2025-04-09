@@ -21,14 +21,14 @@ int steps; // initialize steps variable
 int SelectButton = A0; // select button pin
 int CycleButton = A4; // cycle button pin
 
-//variables
+//Calorie variables
 String heightOptions[] = {"<60in", "61-65in", "66-72in",">73in"}; //the height range options
 String weightOptions[] = {"<100lbs", "101-130lbs", "131-160lbs", "161-190lbs", "191-220lbs", "221-250lbs", ">251lbs"}; //weight range options
 int heightIndex = 0;
 int weightIndex = 0;
 String height = "";
 String weight = "";
-int inputState = 0; //0=idle, 1=selecting height, 2=selecting weight
+int inputState = 0; //calorie info flag: 0=idle, 1=selecting height, 2=selecting weight
 
 void setup() {
   Serial.begin(9600);
@@ -117,7 +117,7 @@ void loop() {
     lcd.print("Height:");
     lcd.setCursor(8,1);
     lcd.print(heightOptions[heightIndex]); //displays height options
-    inputState = 1; // selecting height state
+    inputState = 1; // sets flag to selecting height state
     delay(200);
   }
   else if (inputState ==1) {
@@ -143,7 +143,7 @@ void loop() {
       lcd.print("Weight:");
       lcd.setCursor(8,1);
       lcd.print(weightOptions[weightIndex]);
-      inputState = 2;
+      inputState = 2; // sets flag to selecting weight state
       delay(200);
     }
   }
