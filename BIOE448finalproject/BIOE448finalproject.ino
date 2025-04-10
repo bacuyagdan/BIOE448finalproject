@@ -25,20 +25,20 @@ int CycleButton = A4; // cycle button pin
 String heightOptions[] = {"<60in", "61-65in", "66-72in",">73in"}; //the height range options
 String weightOptions[] = {"<100lbs", "101-130lbs", "131-160lbs", "161-190lbs", "191-220lbs", "221-250lbs", ">251lbs"}; //weight range options
 //String stridelengths[] = {"24in", "26in", "29in", "31in"};  //the respective stride lengths for each height option. listed for reference
-                                                            //stride length = distance back of one heel to the other during a step-in-stride
-                                                            //these are averaged b/w men and women for our selected ranges.
+                                                              //stride length = distance back of one heel to the other during a step-in-stride
+                                                              //these are averaged b/w men and women for our selected ranges.
 int heightIndex = 0;
 int weightIndex = 0;
 String height = "";
 String weight = "";
-int inputState = 0; //calorie info flag: 0=idle, 1=selecting height, 2=selecting weight
+int inputState = 0; //calorie info flag: 0=idle(counting steps only), 1=selecting height, 2=selecting weight, 3=counting steps and calories
 float MET = 3.8;  //MET for specific activity code 17190 of the 2024 Adult Compendium
                 //MET defined as 1 kcal/(kg*hour). Roughly equivalent to energy cost of sitting quietly.
 float walkingrate = 3.1;  // Miles per Hour. The midpoint of the range for the 17190 MET Activity. 
                         // We assume the person is walking at a "moderate" pace, defined here as 3.1 MPH.
-float kcal = 0; //initializes the kcal variable which is the kcal burned by the user.
-float timetaken = 0; //initializes the time variable used to calculate kcals burned
-int userweight = 0; //initializes the user weight variable used in the kcals burned calculations.
+float cal = 0; //initializes the cal variable which is the cal burned by the user.
+float timetaken = 0; //initializes the time variable used to calculate cals burned
+int userweight = 0; //initializes the user weight variable used in the cal burned calculations.
 float KGuserweight = 0; //initializes the converted kilogram userweight for calories burned calculations.
 int stridelength = 0; //initializes user stride length, for use in calories burned calculations
 
@@ -71,59 +71,57 @@ void setup() {
 }
 
 void loop() {
-  Wire.beginTransmission(accel);
-  Wire.write(0x32); // Prepare to get readings for sensor (address from data sheet)
-  Wire.endTransmission(false);
-  Wire.requestFrom(accel, 6, true); // Get readings (2 readings per direction x 3 directions = 6 values)
-  x = (Wire.read() | Wire.read() << 8); // Parse x values
-  y = (Wire.read() | Wire.read() << 8); // Parse y values
-  z = (Wire.read() | Wire.read() << 8); // Parse z values
+  //Button states (active = HIGH)
+  bool selectPressed = digitalRead(SelectButton) == HIGH; //reads the Select Button's state
+  bool cyclePressed = digitalRead(CycleButton) == HIGH;   //reads the Cycle Button's state
+  
+  if (inputState == 0 && selectPressed == LOW) {
+    Wire.beginTransmission(accel);
+    Wire.write(0x32); // Prepare to get readings for sensor (address from data sheet)
+    Wire.endTransmission(false);
+    Wire.requestFrom(accel, 6, true); // Get readings (2 readings per direction x 3 directions = 6 values)
+    x = (Wire.read() | Wire.read() << 8); // Parse x values
+    y = (Wire.read() | Wire.read() << 8); // Parse y values
+    z = (Wire.read() | Wire.read() << 8); // Parse z values
 
-  if (x > 32767) x -= 65536;
-  if (y > 32767) y -= 65536;
-  if (z > 32767) z -= 65536;
+    if (x > 32767) x -= 65536;
+    if (y > 32767) y -= 65536;
+    if (z > 32767) z -= 65536;
 
- // Serial.print("x = "); // Print values
- // Serial.print(x);
- // Serial.print(", y = ");
- // Serial.print(y);
- // Serial.print(", z = ");
- // Serial.println(z);
+    // Serial.print("x = "); // Print values
+    // Serial.print(x);
+    // Serial.print(", y = ");
+    // Serial.print(y);
+    // Serial.print(", z = ");
+    // Serial.println(z);
 
-  acc = sqrt(pow(x,2) + pow(y,2) + pow(z,2)); // Calculate acceleration magnitude
- // Serial.println(acc);
+    acc = sqrt(pow(x,2) + pow(y,2) + pow(z,2)); // Calculate acceleration magnitude
+    // Serial.println(acc);
 
-  delay(200);
+    delay(200);
 
-  if (acc > steps_upper_threshold && flag == false) {
-    steps += 1;
-    flag = true;
-  }
+    if (acc > steps_upper_threshold && flag == false) {
+      steps += 1;
+      flag = true;
+    }
 
-  if (acc < steps_lower_threshold && flag == true) {
-    steps += 1;
-    flag = false;
-  }
+    if (acc < steps_lower_threshold && flag == true) {
+      steps += 1;
+      flag = false;
+    }
 
-  //Serial.println(steps);
+    //Serial.println(steps); //debugger
 
-  //prints the current step count on LCD
-  lcd.setCursor(0,0);
-  lcd.print("Steps:"); 
-  lcd.setCursor(6,0);
-  lcd.print(steps);
-
-  //Bluetooth functionality
-  BLEDevice central = BLE.central(); //wait for a BLE central
-  if (central) {  // if a central is connected to the peripheral
-    readChar.writeValue(steps); //Calls the steps value for the central to read from the peripheral
+    //prints the current step count on LCD
+    lcd.setCursor(0,0);
+    lcd.print("Steps:"); 
+    lcd.setCursor(6,0);
+    lcd.print(steps);
   }
 
   //Calorie counting functionality
-  //Button states (active HIGH)
-  bool selectPressed = digitalRead(SelectButton) == HIGH;
-  bool cyclePressed = digitalRead(CycleButton) == HIGH;
-  if (inputState == 0 && selectPressed){
+  
+  else if (inputState == 0 && selectPressed) {
     //starts height selection
     lcd.setCursor(0,1);
     lcd.print("Height:");
@@ -192,13 +190,66 @@ void loop() {
       delay(2000);
       lcd.setCursor(0,1);
       lcd.print("                ");
-      inputState = 0; //resets flag to idle state
+      inputState = 3; //sets flag to counting steps and calories state
     }
   }
-  timetaken = steps * stridelength / 12 / 5280 / walkingrate; //calculates the current time the user has been walking
-  kcal = MET * KGuserweight * timetaken; // calculates the current calories burned by the user.
-  lcd.setCursor(8,0);
-  lcd.print("kcal:");
-  lcd.setCursor(13,0); //TROUBLESHOOT THIS AS NEEDED TO DISPLAY IN CORRECT LOCATION
-  lcd.print(kcal); //prints the current kcal burned.
+  else if (inputState ==3) {
+    Wire.beginTransmission(accel);
+    Wire.write(0x32); // Prepare to get readings for sensor (address from data sheet)
+    Wire.endTransmission(false);
+    Wire.requestFrom(accel, 6, true); // Get readings (2 readings per direction x 3 directions = 6 values)
+    x = (Wire.read() | Wire.read() << 8); // Parse x values
+    y = (Wire.read() | Wire.read() << 8); // Parse y values
+    z = (Wire.read() | Wire.read() << 8); // Parse z values
+
+    if (x > 32767) x -= 65536;
+    if (y > 32767) y -= 65536;
+    if (z > 32767) z -= 65536;
+
+    // Serial.print("x = "); // Print values
+    // Serial.print(x);
+    // Serial.print(", y = ");
+    // Serial.print(y);
+    // Serial.print(", z = ");
+    // Serial.println(z);
+
+    acc = sqrt(pow(x,2) + pow(y,2) + pow(z,2)); // Calculate acceleration magnitude
+    // Serial.println(acc);
+
+    delay(200);
+
+    if (acc > steps_upper_threshold && flag == false) {
+      steps += 1;
+      flag = true;
+    }
+
+    if (acc < steps_lower_threshold && flag == true) {
+      steps += 1;
+      flag = false;
+    }
+
+    //Serial.println(steps); //debugger
+
+    //prints the current step count on LCD
+    lcd.setCursor(0,0);
+    lcd.print("Steps:"); 
+    lcd.setCursor(6,0);
+    lcd.print(steps);
+    
+    //calculate calories
+    timetaken = steps * stridelength / 12 / 5280 / walkingrate; //calculates the current time the user has been walking
+    cal = MET * KGuserweight * timetaken * 1000; // calculates the current calories burned by the user.
+    delay(2000);
+    lcd.setCursor(0,1);
+    lcd.print("cal:");
+    lcd.setCursor(5,1);
+    lcd.print(cal); //prints the current calories burned.
+  }
+
+  //Bluetooth functionality
+  BLEDevice central = BLE.central(); //wait for a BLE central
+  if (central) {  // if a central is connected to the peripheral
+    readChar.writeValue(steps); //Calls the steps value for the central to read from the peripheral
+  }
+
 }
