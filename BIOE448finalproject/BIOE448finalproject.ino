@@ -9,7 +9,7 @@ BLEByteCharacteristic writeChar("2A57", BLEWrite); //initializae write character
 //accelerometer initialize
 int accel = 0x53; // I2C address for this sensor (from data sheet)
 float x, y, z, acc;
-float kcal;
+//float kcal;
 // declare steps flag for data storage
 bool flag = false;
 // define step counting thresholds
@@ -24,11 +24,23 @@ int CycleButton = A4; // cycle button pin
 //Calorie variables
 String heightOptions[] = {"<60in", "61-65in", "66-72in",">73in"}; //the height range options
 String weightOptions[] = {"<100lbs", "101-130lbs", "131-160lbs", "161-190lbs", "191-220lbs", "221-250lbs", ">251lbs"}; //weight range options
+//String stridelengths[] = {"24in", "26in", "29in", "31in"};  //the respective stride lengths for each height option. listed for reference
+                                                            //stride length = distance back of one heel to the other during a step-in-stride
+                                                            //these are averaged b/w men and women for our selected ranges.
 int heightIndex = 0;
 int weightIndex = 0;
 String height = "";
 String weight = "";
 int inputState = 0; //calorie info flag: 0=idle, 1=selecting height, 2=selecting weight
+float MET = 3.8;  //MET for specific activity code 17190 of the 2024 Adult Compendium
+                //MET defined as 1 kcal/(kg*hour). Roughly equivalent to energy cost of sitting quietly.
+float walkingrate = 3.1;  // Miles per Hour. The midpoint of the range for the 17190 MET Activity. 
+                        // We assume the person is walking at a "moderate" pace, defined here as 3.1 MPH.
+float kcal = 0; //initializes the kcal variable which is the kcal burned by the user.
+float timetaken = 0; //initializes the time variable used to calculate kcals burned
+int userweight = 0; //initializes the user weight variable used in the kcals burned calculations.
+float KGuserweight = 0; //initializes the converted kilogram userweight for calories burned calculations.
+int stridelength = 0; //initializes user stride length, for use in calories burned calculations
 
 void setup() {
   Serial.begin(9600);
@@ -131,11 +143,16 @@ void loop() {
     }
     if (selectPressed){
       height = heightOptions[heightIndex]; //saves the currently shown height range as the user's height
+      //calculate and store user stride length based on the selected height
+      if (height == "<60in")        {stridelength = 24; }
+      else if (weight == "61-65in") {stridelength = 26; }
+      else if (weight == "66-72in") {stridelength = 29; }
+      else if (weight == ">73in")   {stridelength = 31; }
       lcd.setCursor(0,1);
       lcd.print("                ");
       lcd.setCursor(0,1);
       lcd.print("Height saved");
-      Serial.println(height);
+      //Serial.println(height); debugger to verify correct height range is stored
       delay(2000);
       lcd.setCursor(0,1);
       lcd.print("                ");
@@ -158,15 +175,30 @@ void loop() {
     }
     if (selectPressed) {
       weight = weightOptions[weightIndex]; //saves the currently shown weight range as the user's weight
+      //calculate and store user's weight in kilograms
+      if (weight == "<100lbs")         {userweight = 85; }
+      else if (weight == "101-130lbs") {userweight = 115; }
+      else if (weight == "131-160lbs") {userweight = 145; }
+      else if (weight == "161-190lbs") {userweight = 175; }
+      else if (weight == "191-220lbs") {userweight = 205; }
+      else if (weight == "221-250lbs") {userweight = 235; }
+      else if (weight == ">251lbs")    {userweight = 265; }
+      KGuserweight = userweight / 0.453592; //converts pounds (lbs) to kilograms (kg)
       lcd.setCursor(0,1);
       lcd.print("                ");
       lcd.setCursor(0,1);
       lcd.print("Weight saved");
-      Serial.println(weight);
+      //Serial.println(weight); debugger to test if correct weight range is stored
       delay(2000);
       lcd.setCursor(0,1);
       lcd.print("                ");
       inputState = 0; //resets flag to idle state
     }
   }
+  timetaken = steps * stridelength / 12 / 5280 / walkingrate; //calculates the current time the user has been walking
+  kcal = MET * KGuserweight * timetaken; // calculates the current calories burned by the user.
+  lcd.setCursor(8,0);
+  lcd.print("kcal:");
+  lcd.setCursor(13,0); //TROUBLESHOOT THIS AS NEEDED TO DISPLAY IN CORRECT LOCATION
+  lcd.print(kcal); //prints the current kcal burned.
 }
