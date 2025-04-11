@@ -3,7 +3,7 @@
 #include <ArduinoBLE.h> //Arduino Bluetooth library
 LiquidCrystal lcd(7,6,5,4,3,2); // initialize the LCD object
 BLEService newService("180A"); // Creates the service
-BLEByteCharacteristic readChar("2A58", BLERead); //initialize read characteristic
+BLEByteCharacteristic stepsChar("2A58", BLERead); //initialize steps characteristic
 BLEByteCharacteristic writeChar("2A57", BLEWrite); //initializae write characteristic
 
 //accelerometer initialize
@@ -19,7 +19,7 @@ int steps; // initialize steps variable
 
 //buttons initialize
 int SelectButton = A0; // select button pin
-int CycleButton = A4; // cycle button pin
+int CycleButton = A4;  // cycle button pin
 
 //Calorie variables
 String heightOptions[] = {"<60in", "61-65in", "66-72in",">73in"}; //the height range options
@@ -34,9 +34,9 @@ String weight = "";
 int inputState = 0; //calorie info flag: 0=idle(counting steps only), 1=selecting height, 2=selecting weight, 3=counting steps and calories
 float MET = 3.8;  //MET for specific activity code 17190 of the 2024 Adult Compendium
                 //MET defined as 1 kcal/(kg*hour). Roughly equivalent to energy cost of sitting quietly.
-float walkingrate = 3.1;  // Miles per Hour. The midpoint of the range for the 17190 MET Activity. 
+float walkingrate = 3.1;  // Miles per Hour. The midpoint of the range for the 17190 MET Activity. a constant.
                         // We assume the person is walking at a "moderate" pace, defined here as 3.1 MPH.
-float cal = 0; //initializes the cal variable which is the cal burned by the user.
+float kcal = 0; //initializes the cal variable which is the cal burned by the user.
 float timetaken = 0; //initializes the time variable used to calculate cals burned
 int userweight = 0; //initializes the user weight variable used in the cal burned calculations.
 float KGuserweight = 0; //initializes the converted kilogram userweight for calories burned calculations.
@@ -50,17 +50,15 @@ void setup() {
   Wire.write(8); // Get sample measurement
   Wire.endTransmission();
   lcd.begin(16,2); //Initiate LCD in 16x2 configuration
-  pinMode(SelectButton, INPUT_PULLUP);
-  pinMode(CycleButton, INPUT_PULLUP);
 
 //Bluetooth device setup
   BLE.begin();
   BLE.setLocalName("LePoookie");
   BLE.setAdvertisedService(newService);
-  newService.addCharacteristic(readChar); 
+  newService.addCharacteristic(stepsChar);
   newService.addCharacteristic(writeChar);
   BLE.addService(newService);
-  readChar.writeValue(0);
+  stepsChar.writeValue(0);
   writeChar.writeValue(0);
   BLE.advertise(); // Look for a Bluetooth Connection
   Serial.println("Bluetooth Device Active");
@@ -143,15 +141,18 @@ void loop() {
       height = heightOptions[heightIndex]; //saves the currently shown height range as the user's height
       //calculate and store user stride length based on the selected height
       if (height == "<60in")        {stridelength = 24; }
-      else if (weight == "61-65in") {stridelength = 26; }
-      else if (weight == "66-72in") {stridelength = 29; }
-      else if (weight == ">73in")   {stridelength = 31; }
+      else if (height == "61-65in") {stridelength = 26; }
+      else if (height == "66-72in") {stridelength = 29; }
+      else if (height == ">73in")   {stridelength = 31; }
+      //Serial.println("stridelength:"); //debugger to test if correct stride range is stored
+      //Serial.println(stridelength); //debugger to test if correct stride range is stored
       lcd.setCursor(0,1);
       lcd.print("                ");
       lcd.setCursor(0,1);
       lcd.print("Height saved");
-      //Serial.println(height); debugger to verify correct height range is stored
-      delay(2000);
+      //Serial.println("Height:"); //debugger to test if correct height range is stored
+      //Serial.println(height); //debugger to verify correct height range is stored
+      delay(1500);
       lcd.setCursor(0,1);
       lcd.print("                ");
       lcd.setCursor(0,1);
@@ -181,13 +182,14 @@ void loop() {
       else if (weight == "191-220lbs") {userweight = 205; }
       else if (weight == "221-250lbs") {userweight = 235; }
       else if (weight == ">251lbs")    {userweight = 265; }
-      KGuserweight = userweight / 0.453592; //converts pounds (lbs) to kilograms (kg)
+      KGuserweight = userweight /2.205; //converts pounds (lbs) to kilograms (kg)
       lcd.setCursor(0,1);
       lcd.print("                ");
       lcd.setCursor(0,1);
       lcd.print("Weight saved");
-      //Serial.println(weight); debugger to test if correct weight range is stored
-      delay(2000);
+      //Serial.println("userweight:"); //debugger to test if correct weight range is stored
+      //Serial.println(userweight); //debugger to test if correct weight range is stored
+      delay(1500);
       lcd.setCursor(0,1);
       lcd.print("                ");
       inputState = 3; //sets flag to counting steps and calories state
@@ -235,21 +237,20 @@ void loop() {
     lcd.print("Steps:"); 
     lcd.setCursor(6,0);
     lcd.print(steps);
-    
     //calculate calories
-    timetaken = steps * stridelength / 12 / 5280 / walkingrate; //calculates the current time the user has been walking
-    cal = MET * KGuserweight * timetaken * 1000; // calculates the current calories burned by the user.
-    delay(2000);
+    timetaken = steps * stridelength / 12.0 / 5280.0 / walkingrate; //calculates the current time the user has been walking
+    kcal = MET * KGuserweight * timetaken; // calculates the current calories burned by the user.
+    //Serial.println("cal:" && cal);
     lcd.setCursor(0,1);
-    lcd.print("cal:");
+    lcd.print("kcal:");
     lcd.setCursor(5,1);
-    lcd.print(cal); //prints the current calories burned.
+    lcd.print(kcal,2); //prints the current calories burned.
   }
 
   //Bluetooth functionality
   BLEDevice central = BLE.central(); //wait for a BLE central
   if (central) {  // if a central is connected to the peripheral
-    readChar.writeValue(steps); //Calls the steps value for the central to read from the peripheral
+    stepsChar.writeValue(steps); //Calls the steps value for the central to read from the peripheral
   }
 
 }
