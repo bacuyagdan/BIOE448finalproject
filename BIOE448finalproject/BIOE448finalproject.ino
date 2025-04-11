@@ -4,12 +4,11 @@
 LiquidCrystal lcd(7,6,5,4,3,2); // initialize the LCD object
 BLEService newService("180A"); // Creates the service
 BLEByteCharacteristic stepsChar("2A58", BLERead); //initialize steps characteristic
-BLEByteCharacteristic writeChar("2A57", BLEWrite); //initializae write characteristic
+BLEFloatCharacteristic calorieChar("2A59", BLERead); //initializae write characteristic
 
 //accelerometer initialize
 int accel = 0x53; // I2C address for this sensor (from data sheet)
 float x, y, z, acc;
-//float kcal;
 // declare steps flag for data storage
 bool flag = false;
 // define step counting thresholds
@@ -31,16 +30,16 @@ int heightIndex = 0;
 int weightIndex = 0;
 String height = "";
 String weight = "";
-int inputState = 0; //calorie info flag: 0=idle(counting steps only), 1=selecting height, 2=selecting weight, 3=counting steps and calories
+int inputState = 0; //calorie info flag: 0=idle(counting steps only), 1=selecting height, 2=selecting weight, 3=counting steps and Calories
 float MET = 3.8;  //MET for specific activity code 17190 of the 2024 Adult Compendium
                 //MET defined as 1 kcal/(kg*hour). Roughly equivalent to energy cost of sitting quietly.
 float walkingrate = 3.1;  // Miles per Hour. The midpoint of the range for the 17190 MET Activity. a constant.
                         // We assume the person is walking at a "moderate" pace, defined here as 3.1 MPH.
-float kcal = 0; //initializes the cal variable which is the cal burned by the user.
-float timetaken = 0; //initializes the time variable used to calculate cals burned
-int userweight = 0; //initializes the user weight variable used in the cal burned calculations.
-float KGuserweight = 0; //initializes the converted kilogram userweight for calories burned calculations.
-int stridelength = 0; //initializes user stride length, for use in calories burned calculations
+float kcal = 0.0; //initializes the kcal variable which is the Calorie burned by the user.
+float timetaken = 0; //initializes the time variable used to calculate kcals burned.
+int userweight = 0; //initializes the user weight variable used in the kcal burned calculations.
+float KGuserweight = 0; //initializes the converted kilogram userweight for Calories burned calculations.
+int stridelength = 0; //initializes user stride length, for use in Calories burned calculations
 
 void setup() {
   Serial.begin(9600);
@@ -56,12 +55,12 @@ void setup() {
   BLE.setLocalName("LePoookie");
   BLE.setAdvertisedService(newService);
   newService.addCharacteristic(stepsChar);
-  newService.addCharacteristic(writeChar);
+  newService.addCharacteristic(calorieChar);
   BLE.addService(newService);
   stepsChar.writeValue(0);
-  writeChar.writeValue(0);
+  calorieChar.writeValue(0.0);
   BLE.advertise(); // Look for a Bluetooth Connection
-  Serial.println("Bluetooth Device Active");
+  //Serial.println("Bluetooth Device Active"); //debugging only
 
 //button setup
   pinMode(A0,INPUT); //input for the Enter Button
@@ -240,7 +239,6 @@ void loop() {
     //calculate calories
     timetaken = steps * stridelength / 12.0 / 5280.0 / walkingrate; //calculates the current time the user has been walking
     kcal = MET * KGuserweight * timetaken; // calculates the current calories burned by the user.
-    //Serial.println("cal:" && cal);
     lcd.setCursor(0,1);
     lcd.print("kcal:");
     lcd.setCursor(5,1);
@@ -251,6 +249,7 @@ void loop() {
   BLEDevice central = BLE.central(); //wait for a BLE central
   if (central) {  // if a central is connected to the peripheral
     stepsChar.writeValue(steps); //Calls the steps value for the central to read from the peripheral
+    calorieChar.writeValue(kcal);//Calls the kcal value for the central to read from the peripheral
   }
 
 }
