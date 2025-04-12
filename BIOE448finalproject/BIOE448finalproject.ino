@@ -112,7 +112,7 @@ void loop() {
     //prints the current step count on LCD
     lcd.setCursor(0,0);
     lcd.print("Steps:"); 
-    lcd.setCursor(6,0);
+    lcd.setCursor(7,0);
     lcd.print(steps);
   }
 
@@ -234,14 +234,14 @@ void loop() {
     //prints the current step count on LCD
     lcd.setCursor(0,0);
     lcd.print("Steps:"); 
-    lcd.setCursor(6,0);
+    lcd.setCursor(7,0);
     lcd.print(steps);
     //calculate calories
     timetaken = steps * stridelength / 12.0 / 5280.0 / walkingrate; //calculates the current time the user has been walking
     kcal = MET * KGuserweight * timetaken; // calculates the current calories burned by the user.
     lcd.setCursor(0,1);
     lcd.print("kcal:");
-    lcd.setCursor(5,1);
+    lcd.setCursor(7,1);
     lcd.print(kcal,2); //prints the current calories burned.
   }
 
